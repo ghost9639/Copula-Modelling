@@ -1,0 +1,77 @@
+#+title: Copula Project
+#+author: R
+
+* Portfolio Risk Management in R
+
+This project implements a lightweight, minimal dependency approach to estimating the portfolio risk using:
+1. The Variance-Covariance Linear Model,
+2. A Gaussian copula with /t/-distributed marginals.
+
+A full report is available in the [[file:Report.pdf][documentation file]]. The methods employed are based on [cite:@mcneilQuantitativeRiskManagement2015], targeting readability, reproducibility, and minimal statistical "black-boxing". 
+
+* Features
+
+1. Variance-Covariance VaR and AVaR,
+2. Copula-Based Joint Risk Modelling,
+3. Monte Carlo Simulation of loss distributions,
+4. Key Risk Metrics,
+   1. Value at Risk,
+   2. Expected Shortfall,
+5. Visualisation
+   1. Clear distribution plots,
+   2. Joint distribution crossplots.
+
+* CRAN Dependencies
+
+This project has very few dependencies.
+
+#+begin_src R
+  suppressMessages(library(tidyverse)) # Tidyverse supplies data manipulation and plots
+  suppressMessages(library (here)) # here enables reproducible pathing
+  suppressMessages(library(MASS))  # MASS provides multivariate Gaussian simulations
+#+end_src
+
+*No risk or copula modules are used*, all models implemented from "first principles". The report is in [[file:Report.pdf][a pdf]], the [[file:src/Main.rmd][main project file]] is also available. All data used is kept in "data/", and referenced in the Main file using `here`.
+
+* Methodology
+
+** Preparing the Dataset
+
+1. Basic exploratory analysis of dataset,
+2. Conversion to logged returns,
+3. Cleaning dataset of anomalies.
+
+** Variance-Covariance Model
+
+Assumptions:
+1. Normally distributed log returns,
+2. Linearised profit approximation (first order terms of Taylor expansion),
+
+Method:   
+1. Calculate sample mean and covariance,
+2. Calculate VaR directly,
+3. Calculate AVaR analytically.
+
+** Copula Joint Risk Modelling
+
+1. Fitted /t/-distributions to marginals,
+2. Fitted Gaussian copula to marginal uniform distributions,
+3. Generated joint samples from copula,
+4. Applied marginal distributions to convert back to stock price changes.
+
+** Loss Estimation
+
+1. Monte Carlo simulation of potential loss portfolios,
+2. Required quantile collected for VaR,
+3. Exceeding values averaged for AVaR.
+
+* Future Improvements
+
+1. Generalised functions for both,
+2. Backlinked API for functions to modularly support each other,
+3. GARCH volatility modelling,
+4. Backtesting? Stress-testing?
+
+* References
+##+cite_export: csl harvard-university-of-leeds.csl
+#+print_bibliography:
