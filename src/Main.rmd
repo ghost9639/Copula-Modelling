@@ -1,0 +1,462 @@
+---
+Title: MATH5340 Assessment
+Author: R 
+Description: R Markdown Project file for MATH5340 Assessment
+---
+
+# Library Calls 
+
+Required libraries for this project. 
+
+```{r}
+## tidyverse has good dml through dplyr and lubridate
+## and dataviz through ggplot2
+suppressMessages(library(tidyverse))
+suppressMessages(library (here)) # here just enables reliable pathfinding
+suppressMessages(library(MASS))  # MASS provides multivariate Gaussian simulations
+
+```
+
+# Question 1
+
+We'll have to assess VaR and AVaR, both at the 99% percentile. We've got 4 stocks, denoted \lambda's. We are given closing prices and shares below:
+
+
+```{r}
+close_prices <- read_csv(here("data/Data_Student_201605543.csv"))
+
+head(close_prices)
+
+shares <- read_csv(here("data//share_numbers.csv"))
+
+my_shares <- shares %>% filter(`Student ID` == 201605543)
+```
+
+Now we want to make a matrix of our risk factor changes over time. We'll do this by creating a logged version of the data and taking differences.
+
+```{r}
+pclose <- log(close_prices[,-1])
+print(pclose)
+
+dates <- close_prices$Date[1:(length(close_prices$Date)-1)]
+
+risk_factors = lapply(pclose, diff)
+risk_factors = tibble( # I just like tibbles
+    `Date`    = dates,
+    `Asset_1` = risk_factors$"Asset 1",
+    `Asset_2` = risk_factors$"Asset 2",
+    `Asset_3` = risk_factors$"Asset 3",
+    `Asset_4` = risk_factors$"Asset 4"
+)
+
+risk_factors
+```
+
+## (i)
+
+We are now tasked with cleaning the dataset from obvious outliers. I would imagine the first step is to visualise the data. We should start with scatter and violin plots for the dataset and move from there.
+
+```{r, echo = FALSE}
+## Seeing 6 clear outliers in Asset 1
+ggplot(risk_factors, aes(x = Date, y = Asset_1)) +
+    geom_point()
+
+## Seeing what I believe to be the same 6 outliers
+ggplot(risk_factors, aes(x = Date, y = Asset_2)) +
+    geom_point()
+
+## third verse same as the first
+ggplot(risk_factors, aes(x = Date, y = Asset_3)) +
+    geom_point()
+
+## I wonder if he simulated Brownian motion processes
+## and manually made specific outliers for each of us
+ggplot(risk_factors, aes(x = Date, y = Asset_4)) +
+    geom_point()
+```
+
+All of our outliers seem to have the same property of |x| > 1 where `x` is a risk factor. I propose we simply dplyr filter for this property.
+
+```{r, echo = FALSE}
+risk_factors <- risk_factors %>% dplyr::filter(Asset_1 < 1) %>%
+    dplyr::filter(Asset_1 > -1) # these are all the same outliers
+
+ggplot(risk_factors, aes(x = Date, y = Asset_1)) +
+    geom_point()
+
+ggplot(risk_factors, aes(x = Date, y = Asset_2)) +
+    geom_point()
+
+ggplot(risk_factors, aes(x = Date, y = Asset_3)) +
+    geom_point()
+
+ggplot(risk_factors, aes(x = Date, y = Asset_4)) +
+    geom_point()
+
+## These all look good now
+```
+
+We notice more volatility in 2020 but that's to be expected really. Interesting risk plateau in mid-2021, was that the end of the second lockdown or just a simulation artefact?
+
+## (ii)
+
+We are now tasked with applying the variance-covariance method for estimating VaR and AVaR. We are given the date-range "21/02/2021-21/02/2023". We assume that the risk factors are i.i.d.. 
+
+
+The first thing we want to do is load a variable with the right date range.
+
+```{r, echo = FALSE}
+start_date_1 <- dmy("21-02-2021")
+end_date_1 <- dmy("21-02-2023")
+
+start_date_2 <- dmy("10-06-2019")
+end_date_2 <- dmy("10-06-2021")
+
+load_dates_1 <- risk_factors %>% dplyr::filter(Date > start_date_1) %>%
+    dplyr::filter(Date < end_date_1) 
+
+load_dates_2 <- risk_factors %>% dplyr::filter(Date > start_date_2) %>%
+    dplyr::filter(Date < end_date_2) 
+
+head(load_dates_1)
+tail(load_dates_1) # both final dates not predicted day
+head(load_dates_2)
+tail(load_dates_2)
+```
+
+We want to apply the variance-covariance method to `load_dates` now. For this, we have to assume normal stock returns and linearised profit, big assumptions. We begin by obtaining a mean vector and an estimated covariance matrix for the dataset. We also want the prices on the last day of the loaded date matrix.
+
+```{r, echo = FALSE}
+## 21/02/2023
+load_means <- colMeans(load_dates_1[sapply (load_dates_1, is.numeric)]) # our means vector 
+
+load_covs <- cov(load_dates_1[-1]) # our covariance matrix
+
+final_date <- as.data.frame(load_dates_1)[dim(load_dates_1)[1], 1]
+final_close <- close_prices %>% dplyr::filter(Date == final_date)
+final_close # close prices for the day before our predicted day
+
+my_shares # my share prices in every asset
+
+alpha <- 0.01 # working with 99% CI 
+```
+
+We can now apply the variance-covariance method to the first date.
+
+```{r, echo = FALSE} 
+lin_mu <- as.numeric(my_shares[,-1] * final_close[,-1]) %*% as.vector(load_means)
+lin_mu
+
+lin_sigma <- sqrt((as.numeric(my_shares[,-1] * final_close[,-1])) %*%
+as.matrix(load_covs) %*% (as.numeric(my_shares[,-1] * final_close[,-1])))
+lin_sigma
+
+lin_VaR <- -lin_mu + lin_sigma * qnorm (1-alpha)
+lin_VaR
+
+lin_AVaR <- -lin_mu + lin_sigma * dnorm(qnorm (1-alpha))/alpha
+lin_AVaR
+
+```
+
+We can just repeat this for the second set of dates and obtain an objective solution.
+
+
+### (a)
+
+Firstly, we should fit marginal t-distributions to each of our stocks. MASS supplies a fitdistr function that uses MLE techniques to fit known distributions (including the Pearson family).
+
+```{r, echo = FALSE}
+set.seed(1234)
+
+fitting_marginals <- function (series) {
+    ## just a set of test dfs
+    trial_dfs <- c(2, 4, 10, 16, 32, 64) 
+    df_log_lik <- c(1:6)
+
+    for (i in c(1:6)) {
+        ## MASS t distribution fitting
+        fit <- fitdistr(
+            series,
+            "t",
+            df = trial_dfs[i], # optional df
+            start = list(
+                m  = median(series),
+                s  = IQR(series) / 2
+            ),
+            lower = c(m = -Inf, s = 1e-8)
+        )
+
+        df_log_lik[i] = fit$loglik
+    }
+    
+    return (trial_dfs[which.max(df_log_lik)])
+}
+
+## all of these came out as 4 df being the best for me
+fitting_marginals(load_dates_1$Asset_1)
+fitting_marginals(load_dates_1$Asset_2)
+fitting_marginals(load_dates_1$Asset_3)
+fitting_marginals(load_dates_1$Asset_4)
+
+fit_1 <- fitdistr (load_dates_1$Asset_1, "t", df = 4)
+fit_1$estimate
+
+fit_2 <- fitdistr (load_dates_1$Asset_2, "t", df = 4,
+                   start = list(
+                       m  = median(load_dates_1$Asset_2),
+                       s  = IQR(load_dates_1$Asset_2) / 2),
+                   lower = c(m = -Inf, s = 1e-8))
+fit_2$estimate
+
+fit_3 <- fitdistr (load_dates_1$Asset_3, "t", df = 4)
+fit_3$estimate
+
+fit_4 <- fitdistr (load_dates_1$Asset_4, "t", df = 4,
+                   start = list(
+                       m  = median(load_dates_1$Asset_4),
+                       s  = IQR(load_dates_1$Asset_4) / 2),
+                   lower = c(m = -Inf, s = 1e-8))
+fit_4$estimate
+
+
+```
+
+Play it safe with the Gaussian. Looking at the distribution of our asset returns:
+
+```{r, echo = FALSE}
+hist(risk_factors$Asset_1, breaks=100)
+```
+
+Assuming _t_-distributed marginals seems fair. This gives us a known quantile function qt() in R. 
+
+```{r, echo = FALSE}
+simulations = 10000
+copula_rho <- 0.7 # will be estimated later
+copula_R <- matrix (c(1, copula_rho, copula_rho, copula_rho, copula_rho, 1, copula_rho, copula_rho, copula_rho, copula_rho, 1, copula_rho, copula_rho, copula_rho, copula_rho, 1), 4, 4) # first time btw
+print(copula_R)
+
+stock1_v <- 4
+stock2_v <- 4
+stock3_v <- 4
+stock4_v <- 4
+
+cat("Determinants:")
+print(c(det(copula_R), det(copula_R[1:3, 1:3]), det(copula_R[1:2, 1:2]), 1))
+
+## Copula sampling distribution
+z_samples <- MASS::mvrnorm(n = simulations, mu = rep(0, 4),
+                           Sigma = copula_R)
+
+## chisq_samples <- rchisq(n = simulations, df = copula_v)
+
+## t_samples = sweep(z_samples, 1,
+##                   sqrt(chisq_samples / copula_v), "/") # sweep runs static matrix operations
+
+## These are our marginal distributions
+par(mfrow = c(4,1))
+hist(z_samples[,1], breaks = 100)
+hist(z_samples[,2], breaks = 100)
+hist(z_samples[,3], breaks = 100)
+hist(z_samples[,4], breaks = 100)
+par(mfrow = c(1,1))
+
+## These are our uniform distributions
+u <- pnorm(z_samples)
+par(mfrow = c(4,1))
+hist(u[,1], breaks = 100)
+hist(u[,2], breaks = 100)
+hist(u[,3], breaks = 100)
+hist(u[,4], breaks = 100)
+par(mfrow = c(1,1))
+
+## These are our (prospective) modelled stocks
+stock1_dist <- fit_1$estimate[1] +
+    fit_1$estimate[2] * qt(u[,1], df = stock1_v)
+stock2_dist <- fit_2$estimate[1] +
+    fit_2$estimate[2] * qt(u[,1], df = stock2_v)
+stock3_dist <- fit_3$estimate[1] +
+    fit_3$estimate[2] * qt(u[,1], df = stock3_v)
+stock4_dist <- fit_4$estimate[1] +
+    fit_4$estimate[2] * qt(u[,1], df = stock4_v)
+
+
+par(mfrow = c(4,1))
+hist(stock1_dist, breaks = 100)
+hist(stock2_dist, breaks = 100)
+hist(stock3_dist, breaks = 100)
+hist(stock4_dist, breaks = 100)
+par(mfrow = c(1,1))
+
+## the real flexibility of the meta t-distribution is
+## free dofs
+
+```
+
+In Lecture 7, Dr. Ararat presented the uniform marginal distributions on a scatterplot to demonstrate the relation.
+
+```{r, echo = FALSE} 
+
+par(mfrow = c(2,2))
+plot(u[,1], u[,2], pch = '.')
+plot(u[,2], u[,3], pch = '.')
+plot(u[,3], u[,4], pch = '.')
+plot(u[,1], u[,4], pch = '.')
+par(mfrow = c(1,1))
+
+pairs(u, pch = ".", main = "Scatterplot Matrix of Uniform Variables")
+
+```
+
+We can also show the marginal distributions (Lec 8).
+
+```{r, echo = FALSE} 
+
+par(mfrow = c(2,2))
+plot(stock1_dist, stock2_dist, pch = '.')
+plot(stock2_dist, stock3_dist, pch = '.')
+plot(stock3_dist, stock4_dist, pch = '.')
+plot(stock1_dist, stock4_dist, pch = '.')
+par(mfrow = c(1,1))
+
+```
+
+They look good but there is an inflated concordance since all of the degrees of freedom are currently set to 4.
+
+
+
+## (v)
+
+### (b)
+
+On page 176 they define the fancy rho function as:
+
+Y_{t, j} = \Phi^{-1} (\hat{U}_{t,j}) for j in dimensions
+
+\det is the square rooted trace
+
+rho (\sum) = (\det (\sigma))^{-1} \sigma (\det (\sigma))^{-1}
+
+On page 272 they show that the MLE estimator of the correlation matrix is 
+
+\hat{\sum} = n^{-1} \sum^n_{t=1} Y_t Y_t'
+
+With a better approximation being rho (\sum)
+
+We have a relatively simple roadmap for a function based on McNeil et al.
+1. We want to fit t-distributions to each return,
+2. We want to convert the data to uniform distributions across the marginals,
+3. We want to perform a d-dimensional Gaussian quantile transformation into the Copula space,
+4. We want to calculate the crossproduct (covariance) of the Gaussian quantile distribution,
+5. We want to calculate our determinant of our experimental covariance as the trace of the square rooted matrix,
+6. We want to return the correlation as 
+
+```{r, echo = FALSE}
+U_1 <- pt((load_dates_1$Asset_1 - fit_1$estimate[1])
+          / fit_1$estimate[2], df = 4)
+U_2 <- pt((load_dates_1$Asset_2 - fit_2$estimate[1])
+          / fit_2$estimate[2], df = 4)
+U_3 <- pt((load_dates_1$Asset_3 - fit_3$estimate[1])
+          / fit_3$estimate[2], df = 4)
+U_4 <- pt((load_dates_1$Asset_4 - fit_4$estimate[1])
+          / fit_4$estimate[2], df = 4)
+
+U <- cbind(U_1, U_2, U_3, U_4)
+Y <- qnorm(U)
+
+sigma_hat <- crossprod(Y) / nrow(Y)
+
+Det <- diag(1 / sqrt(diag(sigma_hat)))
+P_hat <- Det %*% sigma_hat %*% Det
+print("Our estimated correlation matrix: ")
+print(P_hat)
+
+c_means <- rep(0,4)
+print("Our copula means: ")
+print(c_means)
+
+```
+
+We now have a Gaussian copula (by default centred on 0) with a fitted correlation matrix. Our marginal t-distributions also have estimated parameters, allowing for free conversion between the uniform and distribution functions.
+
+The obvious path forwards now is to generate a set of uniforms from the copula and convert those back into the marginal distributions, estimate the total portfolio value change, sort them, and select the one at the (1-alpha) proportion.
+
+```{r, echo = FALSE} 
+simulations <- 10000
+alpha <- 0.99
+day_value <- close_prices %>% dplyr::filter (Date == end_date_1)
+
+## take a joint estimate
+joint_estimate <- MASS::mvrnorm(n = simulations, mu = c_means, Sigma = P_hat)
+
+## convert to the marginal distributions
+hist(qt(pnorm(joint_estimate[,1]), df = 4), breaks=100) 
+
+marginals_1 <- qt(pnorm(joint_estimate[,1]), df = 4) * fit_1$estimate[2] + fit_1$estimate[1]
+marginals_2 <- qt(pnorm(joint_estimate[,2]), df = 4) * fit_2$estimate[2] + fit_2$estimate[1]
+marginals_3 <- qt(pnorm(joint_estimate[,3]), df = 4) * fit_3$estimate[2] + fit_3$estimate[1]
+marginals_4 <- qt(pnorm(joint_estimate[,4]), df = 4) * fit_4$estimate[2] + fit_4$estimate[1]
+
+estimated_returns <- cbind(marginals_1, marginals_2, marginals_3, marginals_4)
+
+head(estimated_returns)
+par(mfrow = c(4, 1))
+hist(estimated_returns[,1], breaks = 100)
+hist(estimated_returns[,2], breaks = 100)
+hist(estimated_returns[,3], breaks = 100)
+hist(estimated_returns[,4], breaks = 100)
+par(mfrow = c(1, 1))
+
+original_Lstocks <- day_value[-1] %>% as.numeric %>% log #logged values of final closing price before date
+
+## adds logged final price to estimated returns
+changed_vals <- t(apply (estimated_returns, 1, function(x) x + original_Lstocks))
+
+estimated_stocks <- exp(changed_vals)
+head(estimated_stocks)
+
+## These are our estimates for the potential stock price
+par(mfrow = c(4,1))
+hist(estimated_stocks[,1], breaks = 100)
+hist(estimated_stocks[,2], breaks = 100)
+hist(estimated_stocks[,3], breaks = 100)
+hist(estimated_stocks[,4], breaks = 100)
+par(mfrow = c(1,1))
+
+
+
+## estimate the portfolio value changes
+dim(estimated_stocks)
+
+estimated_value <- estimated_stocks %*% as.numeric(my_shares[-1])
+current_value <- as.numeric(day_value[-1]) %*% as.numeric(my_shares[-1])
+
+estimated_losses <- apply (estimated_value, 1, function(x) x - current_value)
+head(estimated_losses)
+hist(estimated_losses, breaks = 100)
+
+hist(estimated_losses, breaks = 100, xlim = c(-8000, 6000))
+ggplot(as_tibble(estimated_losses), aes(value)) + geom_histogram()
+
+sorted_ELosses <- sort(estimated_losses)
+copula_VaR <- quantile (sorted_ELosses, probs = 1 - alpha, type = 7)
+copula_AVaR <- mean(estimated_losses[estimated_losses <= copula_VaR])
+
+sprintf("The copula estimated VaR is %f, and the copula estimated AVaR is %f at the %.2f confidence interval",
+        copula_VaR, copula_AVaR, 1-alpha)
+
+sprintf("The linear model estimated VaR is %f, and the linear model estimated AVaR is %f at the %.2f confidence interval",
+        lin_VaR, lin_AVaR, 1-alpha)
+
+head(estimated_value)
+mean(estimated_value)
+hist(estimated_value)
+
+day_value <- close_prices %>% dplyr::filter (Date == end_date_1)
+
+
+as.numeric(day_value[-1]) %*% as.numeric(my_shares[-1])
+fit_1
+
+
+```

@@ -1,0 +1,414 @@
+#+title: Copula Risk Modelling Project
+#+author: R
+#+latex_class: article-lua
+#+LATEX_HEADER: \usepackage{xurl}
+
+\flushleft
+\tableofcontents
+
+* Introduction
+
+In this project, I use R to calculate the Value at Risk (VaR) and the Average Value at Risk (AVaR) at the 99% CI for a portfolio of 4 stocks on 22-02-2023. The VaR_\alpha is defined as the potential loss level such that only \alpha% of parametric losses would be greater. The AVaR_\alpha is generally the mean of the losses that would exceed the VaR_\alpha. This involves specifically the linear model and a Gaussian copula with /t/-distributed marginals. For convenience, we assume an unchanging portfolio of investments into the 4 risky assets. The period of data we have consists of 1,258 observations between 22-02-2018 and 21-02-2023. \linebreak
+
+#+name: viz::meanstockvals
+#+caption: (Mean) Stock Values in Portfolio over duration of trading
+#+attr_latex: :float t :width 0.7\linewidth :height 0.4\textheight :keepaspectratio
+#+RESULTS: babel::stockvalues
+[[file:babelStockVals.pdf]]
+
+
+#+name: viz::stockhist
+#+RESULTS: babel::stockhist
+#+caption: Close Prices for Stock Portfolio
+#+attr_latex: :float t :width 0.7\linewidth :height 0.4\textheight :keepaspectratio
+[[file:babelStockClose.pdf]]
+
+Based on Figure [[viz::meanstockvals]], we can see that the bulk of our portfolio was invested into Assets 2 and 3, with 1 and 4 averaging just below £4,000 for the duration of the trading period. This makes sense looking at Figure [[viz::meanstockvals]], where Assets 2 and 3 have the highest closing prices, while 1 and 4 have similar prices and lower volatility over the period.
+
+* Cleaning the data
+
+After loading up the data, we want to convert it to logged returns for more reliable parameter estimation. Observing Figure [[viz::dirtyreturns]], we can see that the distributions are generally distributed regularly around 0, but that all of the assets experience anomalous spikes on 6 dates, where the absolute logged stock returns all exceed 1. To this end, we can clean the data of anomalies by filtering out all returns exceeding 1. If we observe the filtered dataset in Figure [[viz::cleanreturns]], we can see that the two periods that generally had the most variance were in early 2020, around the first COVID-19 lockdown in the UK, and around mid-2022, perhaps as the post-lockdown "bounce-back".
+
+#+name: viz::dirtyreturns
+#+RESULTS: babel::dirtyreturns
+#+caption: Logged Returns for Assets
+#+attr_latex: :float t :width 0.7\linewidth :height 0.4\textheight :keepaspectratio
+[[file:babelDirtyReturns.pdf]]
+
+#+name: viz::cleanreturns
+#+RESULTS: babel::cleanreturns
+#+caption: Cleaned Logged Returns for Assets
+#+attr_latex: :float t :width 0.7\linewidth :height 0.4\textheight :keepaspectratio
+[[file:babelCleanReturns.pdf]]
+
+* Variance-Covariance Linear Model
+
+We can apply the variance-covariance method to estimating VaR and AVaR. We can sample the 2 years prior to our sampling day, giving us 501 days worth of data. The variance-covariance method assumes that stock returns are normal, and approximates the evolutionary process using a linear model. For short term periods like a single day however, this should be reasonably accurate. The model works by assuming the existence of a pricing function /f/, such that the profit /V/ can be calculated as a deterministic function of random variables, called risk factors.
+
+\[V_t = f (t, \mathbf{Z}_t) \]
+
+The return then becomes:
+
+\[\triangle V^{\text{lin}}_t := \frac{\delta f}{\delta t} (r, \mathbf{Z}_t) \triangle t + \sum^d_{i=1} \frac{\delta f}{\delta z_i} (t, \mathbf{Z}_t) \triangle Z^i_t \]
+
+We can practically obtain this for a one day VaR by obtaining a mean and covariance matrix estimate, and calculating the loss for the $(1-\alpha)\%$ confidence interval using the normal distribution. The AVaR can be calculated as the density of the distribution. \linebreak
+
+Observing block [[listing::lmest]], we can see that the estimated VaR is £2003.50, and the AVaR is £2293.39. These two values are very close together, reflective of one of the biggest problems with any Gaussian model of stock returns, as extreme outcomes become very rare parametrically despite our heuristic knowledge that poor economic situations are far more volatile than stable markets (closer to the mean). 
+
+#+caption: Linear model VaR and AVaR estimates
+#+name: listing::lmest
+#+RESULTS: babel::linearapprox
+| The Value at Risk estimated from the linear model is £2003.50, and |
+| the Average Value at Risk estimated from the model is £2293.39.    |
+
+* Copula Fitting
+
+If we want to model distributions with heavier tails, we can apply the /t/-distribution. This section is based on [cite:@mcneilQuantitativeRiskManagement2015], with methods reconstructed based on Chapter 7. Tidyverse was used for data manipulation methods and MASS was used for multivariate normal distribution sampling. We can model our `marginal` stock distributions, each individual asset, according to their own /t/-distributions. We can then fit a Gaussian `copula`, an effective joint cumulative distribution function, in order to obtain more accurate and deeper tails. \linebreak
+
+Our first objective is fitting the marginals, for which we need to choose the degrees of freedom. This comes out to 4 (Appendix [[babel::marginalfitting]]) for all 4 assets. Armed with fitted /t/-distributions, we can convert our returns to uniform distributions by applying the cumulative distribution function for the respective asset. This gives us the distributions in Figure [[viz::originaluniforms]], which are recognisably uniform, implying that the models are well fitted.
+
+#+name: viz::originaluniforms
+#+caption: Uniform distributions for original Assets
+#+RESULTS: babel::OriginalUniforms
+#+attr_latex: :float t :width \linewidth :height 0.6\textheight :keepaspectratio
+[[file:babelOriginalUnif.pdf]]
+
+We can now estimate the correlation matrix directly, as the weighted crossproduct of the uniforms (the covariance), divided by the variances of each asset. We assume the distributions centre on 0, so the means are simply a $1 \times 4$ vector of 0's. Observing block [[verb::estpara]], we can see that the estimated correlation matrix was successfully constructed, with the highest correlation between stocks 4 and 2, and the lowest between 1 and 3.
+
+#+name: verb::estpara
+#+caption: Estimated Copula Parameters
+#+RESULTS: babel::copulaparest
+: [1] "Our estimated correlation matrix: "
+:            [,1]      [,2]       [,3]      [,4]
+: [1,] 1.00000000 0.1596394 0.01487549 0.1671441
+: [2,] 0.15963939 1.0000000 0.43511877 0.7302483
+: [3,] 0.01487549 0.4351188 1.00000000 0.4861356
+: [4,] 0.16714412 0.7302483 0.48613555 1.0000000
+: [1] "Our copula means: "
+: [1] 0 0 0 0
+
+The copula is fitted, and the marginals are fitted too. We can now freely generate values from the joint distribution and convert them back into the original distributions. We can observe the estimated stock returns in Figure [[viz::copulasample]], where the distributions look accurate to the sample distribution. Further, we can se the increased joint marginal distributions in Figure [[viz::estunifjoint]]. For stocks with low correlation, like Assets 1 and 3, we can see the distributions look seemingly randomly distributed according to a mean 0 Gaussian distribution. However, for more highly correlated stocks like Assets 2 and 4, the joint distribution has far heavier tails, reflecting a higher instance of extreme negative outcomes. \linebreak
+
+#+RESULTS: babel::copulasample
+#+name: viz::copulasample
+#+caption: Simulated Stock Return Distributions
+#+attr_latex: :float t :width \linewidth :height 0.6\textheight :keepaspectratio
+[[file:babelCopulaSamp.pdf]]
+
+#+name: viz::estunifjoint
+#+caption: Joint Marginal Distributions for Simulated Assets
+#+RESULTS: babel::estimatedUniformJoint
+[[file:babelUniformJoint.pdf]]
+
+We can calculate the portfolio value for any of these simulated possibilities, and chart them out as a loss distribution by deducting the day before from the simulated portfolio value. Observing Figure [[viz::lossdist]], we can see that the losses are vaguely normally distributed, but do have heavy tails, indicating a distribution that better reflects the probability of extreme outlier cases. We can see that the final values for VaR and AVaR also reflect this, where the copula estimated VaR is £2,158.79 and the AVaR is £2,837.97, the linear model VaR is only £2,003.50 and the AVaR is £2,293.39. The major disparity between the AVaR especially is closely related to the Gaussian distribution of stock returns grossly underestimating the frequency of outliers.
+
+#+name: block::VaREst
+#+caption: VaR and AVaR for both models
+#+RESULTS: babel::VaRComps
+: [1] "The copula estimated VaR is £-2158.79, and the copula"
+: [1] "estimated AVaR is £-2837.97 at the 0.01 confidence"
+: [1] "interval."
+: 
+: [1] "The linear model estimated VaR is £2003.50, and"
+: [1] "the linear \n model estimated AVaR is £2293.39"
+: [1] "at the 0.01 confidence interval."
+
+#+name: viz::lossdist
+#+caption: Copula Simulated Loss Distribution
+#+RESULTS: babel::simlossdist
+[[file:babelSimLossDistribution.pdf]]
+
+\newpage
+
+* Appendix
+
+Code blocks evaluated in org-babel (version: =release_9.7.37=) on Mac Tahoe 26.3.1, using R version 4.5.1. Only CRAN library dependencies are =tidyverse= and =here=, although =here= is optional and only used for file pathing.
+
+#+caption: Library Calls for Program
+#+begin_src R :session MyR :exports code
+  set.seed(1234) # document seeding
+  suppressMessages(library(tidyverse))
+  suppressMessages(library (here)) # here just enables reliable pathfinding
+  suppressMessages(library(MASS))  # MASS provides multivariate Gaussian simulations
+#+end_src
+
+#+begin_src R :session MyR :exports none
+  close_prices <- read_csv(here("data/Data_Student_201605543.csv"))
+
+  shares <- read_csv(here("data//share_numbers.csv"))
+
+  my_shares <- shares %>% filter(`Student ID` == 201605543)
+  colnames(my_shares) <- c("SID", "Asset 1", "Asset 2", "Asset 3", "Asset 4")
+#+end_src
+
+#+name: babel::stockvalues
+#+caption: Visualisation of Stock Value in portfolio
+#+begin_src R :session MyR :results graphics file :file babelStockVals.pdf :exports both
+  share_vals <- as.numeric(colMeans(close_prices[-1])) * as.numeric(my_shares[-1])
+
+  barplot(share_vals, names.arg = colnames(my_shares[-1]), xlab = "Asset", ylab = "Price (£)")
+#+end_src
+
+
+#+name: babel::stockhist
+#+caption: Close prices visualisation
+#+begin_src R :session MyR :results graphics file :file babelStockClose.pdf :exports code
+  matplot(x = close_prices$Date, y = close_prices[-1], type="b",pch=20, xlab="Time", ylab="Closing Prices (£)")
+  legend("topright", colnames(close_prices[-1]), col = seq_len(ncol(close_prices[-1])),cex=0.8,fill=seq_len(ncol(close_prices[-1])))
+#+end_src
+
+#+caption: Conversion to logged returns
+#+begin_src R :session MyR :exports code
+  pclose <- log(close_prices[,-1])
+  risk_factors = lapply(pclose, diff)
+  dates <- close_prices$Date[1:(length(close_prices$Date)-1)]
+  risk_factors <- tibble( # I just like tibbles
+      `Date`    = dates,
+      `Asset_1` = risk_factors$"Asset 1",
+      `Asset_2` = risk_factors$"Asset 2",
+      `Asset_3` = risk_factors$"Asset 3",
+      `Asset_4` = risk_factors$"Asset 4"
+  )
+  dim(risk_factors)
+#+end_src
+
+
+#+name: babel::dirtyreturns
+#+caption: Stock Return Distributions
+#+begin_src R :session MyR :results graphics file :file babelDirtyReturns.pdf :exports code
+  matplot(x = risk_factors$Date, y = risk_factors[-1], type="b",pch=20, xlab="Time", ylab="Logged Stock Returns")
+  legend("topright", colnames(close_prices[-1]), col = seq_len(ncol(close_prices[-1])),cex=0.8,fill=seq_len(ncol(close_prices[-1])))
+#+end_src
+
+#+caption: Removing Anomalies from dataset
+#+begin_src R :session MyR :exports code
+  risk_factors <- risk_factors %>% dplyr::filter(Asset_1 < 1) %>%
+      dplyr::filter(Asset_1 > -1) # these are all the same outliers
+
+  dim(risk_factors)
+#+end_src
+
+#+name: babel::cleanreturns
+#+caption: Cleaned Stock Return Distributions
+#+begin_src R :session MyR :results graphics file :file babelCleanReturns.pdf :exports code
+  matplot(x = risk_factors$Date, y = risk_factors[-1], type="l",pch=20, xlab="Time", ylab="Logged Stock Returns")
+  legend("topright", colnames(close_prices[-1]), col = seq_len(ncol(close_prices[-1])),cex=0.8,fill=seq_len(ncol(close_prices[-1])))
+#+end_src
+
+#+caption: Date Range Isolation
+#+begin_src R :session MyR :exports code
+  start_date_1 <- dmy("21-02-2021")
+  end_date_1 <- dmy("21-02-2023")
+
+  load_dates_1 <- risk_factors %>% dplyr::filter(Date > start_date_1) %>%
+    dplyr::filter(Date < end_date_1)
+  dim(load_dates_1)  
+#+end_src
+
+
+#+name: babel::linearapprox
+#+caption: Linear Approximation for VaR and AVaR
+#+begin_src R :session MyR :results value :exports both
+  ## sample values
+  load_means <- colMeans(load_dates_1[sapply (load_dates_1, is.numeric)]) # our means vector 
+
+  load_covs <- cov(load_dates_1[-1]) # our covariance matrix
+
+  final_date <- as.data.frame(load_dates_1)[dim(load_dates_1)[1], 1]
+  final_close <- close_prices %>% dplyr::filter(Date == final_date)
+  ## close prices for the day before our predicted day
+
+  ## parameter estimation
+  alpha = 0.01
+
+  lin_mu <- as.numeric(my_shares[,-1] * final_close[,-1]) %*% as.vector(load_means)
+
+  lin_sigma <- sqrt((as.numeric(my_shares[,-1] * final_close[,-1])) %*%
+                    as.matrix(load_covs) %*% (as.numeric(my_shares[,-1] * final_close[,-1])))
+
+  ## calculating VaR and AVaR
+  lin_VaR <- -lin_mu + lin_sigma * qnorm (1-alpha)
+  lin_AVaR <- -lin_mu + lin_sigma * dnorm(qnorm (1-alpha))/alpha
+  sprintf("The Value at Risk estimated from the linear model is £%.2f, and \n the Average Value at Risk estimated from the model is £%.2f.", lin_VaR, lin_AVaR)
+#+end_src
+
+#+name: babel::marginalfitting
+#+caption: Fitting marginal /t/-distributions
+#+begin_src R :session MyR :exports code
+  fitting_marginals <- function (series) {
+      ## just a set of test dfs
+      trial_dfs <- c(2, 4, 10, 16, 32, 64) 
+      df_log_lik <- c(1:6)
+
+      for (i in c(1:6)) {
+          ## MASS t distribution fitting
+          fit <- fitdistr(
+              series,
+              "t",
+              df = trial_dfs[i], # optional df
+              start = list(
+                  m  = median(series),
+                  s  = IQR(series) / 2
+              ),
+              lower = c(m = -Inf, s = 1e-8)
+          )
+
+          df_log_lik[i] = fit$loglik
+      }
+      
+      return (trial_dfs[which.max(df_log_lik)])
+  }
+
+  ## all of these came out as 4 df being the best for me
+  fitting_marginals(load_dates_1$Asset_1)
+  fitting_marginals(load_dates_1$Asset_2)
+  fitting_marginals(load_dates_1$Asset_3)
+  fitting_marginals(load_dates_1$Asset_4)
+
+  fit_1 <- fitdistr (load_dates_1$Asset_1, "t", df = 4)
+  fit_1$estimate
+
+  fit_2 <- fitdistr (load_dates_1$Asset_2, "t", df = 4,
+                     start = list(
+                         m  = median(load_dates_1$Asset_2),
+                         s  = IQR(load_dates_1$Asset_2) / 2),
+                     lower = c(m = -Inf, s = 1e-8))
+  fit_2$estimate
+
+  fit_3 <- fitdistr (load_dates_1$Asset_3, "t", df = 4)
+  fit_3$estimate
+
+  fit_4 <- fitdistr (load_dates_1$Asset_4, "t", df = 4,
+                     start = list(
+                         m  = median(load_dates_1$Asset_4),
+                         s  = IQR(load_dates_1$Asset_4) / 2),
+                     lower = c(m = -Inf, s = 1e-8))
+  fit_4$estimate
+#+end_src
+
+#+name: babel::OriginalUniforms
+#+caption: Original Asset Uniform Distributions
+#+begin_src R :session MyR :results graphics file :file babelOriginalUnif.pdf :exports code
+  U_1 <- pt((load_dates_1$Asset_1 - fit_1$estimate[1])
+            / fit_1$estimate[2], df = 4)
+  U_2 <- pt((load_dates_1$Asset_2 - fit_2$estimate[1])
+            / fit_2$estimate[2], df = 4)
+  U_3 <- pt((load_dates_1$Asset_3 - fit_3$estimate[1])
+            / fit_3$estimate[2], df = 4)
+  U_4 <- pt((load_dates_1$Asset_4 - fit_4$estimate[1])
+            / fit_4$estimate[2], df = 4)
+
+  U <- cbind(U_1, U_2, U_3, U_4)
+
+  par(mfrow = c(4,1))
+  hist(U_1, xlab = "Uniform distribution of Asset 1")
+  hist(U_2, xlab = "Uniform distribution of Asset 2")
+  hist(U_3, xlab = "Uniform distribution of Asset 3")
+  hist(U_4, xlab = "Uniform distribution of Asset 4")
+  par(mfrow = c(1,1))
+#+end_src 
+
+#+name: babel::copulaparest
+#+caption: Estimating Copula Parameters
+#+begin_src R :session MyR :results output :exports both
+  Y <- qnorm(U) # conversion to normal distribution
+
+  sigma_hat <- crossprod(Y) / nrow(Y) # covar calculation
+
+  Det <- diag(1 / sqrt(diag(sigma_hat))) #var calculation
+  P_hat <- Det %*% sigma_hat %*% Det     # corr calculation
+  print("Our estimated correlation matrix: ")
+  print(P_hat)
+
+  c_means <- rep(0,4)
+  cat("Our copula means: ")
+  print(c_means)
+#+end_src
+
+#+name: babel::copulasample
+#+caption: Sampling from the Copula
+#+begin_src R :session MyR :results graphics file :file babelCopulaSamp.pdf :exports code
+  simulations <- 10000
+  alpha <- 0.99
+  day_value <- close_prices %>% dplyr::filter (Date == end_date_1)
+
+  ## take a joint estimate
+  joint_estimate <- MASS::mvrnorm(n = simulations, mu = c_means, Sigma = P_hat)
+
+  ## convert to marginals by applying inverse transform
+  marginals_1 <- qt(pnorm(joint_estimate[,1]), df = 4) * fit_1$estimate[2] + fit_1$estimate[1]
+  marginals_2 <- qt(pnorm(joint_estimate[,2]), df = 4) * fit_2$estimate[2] + fit_2$estimate[1]
+  marginals_3 <- qt(pnorm(joint_estimate[,3]), df = 4) * fit_3$estimate[2] + fit_3$estimate[1]
+  marginals_4 <- qt(pnorm(joint_estimate[,4]), df = 4) * fit_4$estimate[2] + fit_4$estimate[1]
+
+  estimated_returns <- cbind(marginals_1, marginals_2, marginals_3, marginals_4)
+
+  par(mfrow = c(4, 1))
+  hist(estimated_returns[,1], breaks = 100, xlab = "Distribution of Simulated Asset 1")
+  hist(estimated_returns[,2], breaks = 100, xlab = "Distribution of Simulated Asset 2")
+  hist(estimated_returns[,3], breaks = 100, xlab = "Distribution of Simulated Asset 3")
+  hist(estimated_returns[,4], breaks = 100, xlab = "Distribution of Simulated Asset 4")
+  par(mfrow = c(1, 1))
+#+end_src
+
+#+name: babel::estimatedUniformJoint
+#+caption: Cross Plots for Joint Distributions in Uniform Asset simulation
+#+begin_src R :session MyR :results graphics file :file babelUniformJoint.pdf :exports both
+  colnames(joint_estimate) <- c("Asset 1", "Asset 2", "Asset 3", "Asset 4")
+
+  pairs(joint_estimate, pch = ".", main = "Marginal Distributions of Uniform Assets")
+#+end_src
+
+#+name: babel::simlossdist
+#+caption: Simulated Loss Distribution
+#+begin_src R :session MyR :results graphics file :file babelSimLossDistribution.pdf :exports both
+  original_Lstocks <- day_value[-1] %>% as.numeric %>% log #logged values of final closing price before date
+
+  ## adds logged final price to estimated returns
+  changed_vals <- t(apply (estimated_returns, 1, function(x) x + original_Lstocks))
+
+  estimated_stocks <- exp(changed_vals)
+
+  estimated_value <- estimated_stocks %*% as.numeric(my_shares[-1])
+  current_value <- as.numeric(day_value[-1]) %*% as.numeric(my_shares[-1])
+
+  colnames(estimated_stocks) <- c("Asset 1", "Asset 2", "Asset 3", "Asset 4")
+
+  estimated_losses <- apply (estimated_value, 1, function(x) x - current_value)
+  ##colname(estimated_losses) <- ("Portfolio Loss")
+
+  ## unfortunately could not get base histogram to render this
+  tibble_losses <- as_tibble(estimated_losses)
+  colnames(tibble_losses) <- ("Simulated Losses (£)")
+  
+  ggplot(as_tibble(estimated_losses), aes(value)) + geom_histogram(bins = 100) + ggtitle("Simulated Losses") + xlab("Loss (£)") + ylab("Frequency")
+#+end_src
+
+#+name: babel::VaRComps
+#+caption: Final VaR and AVaR estimates for both models
+#+begin_src R :session MyR :results output :exports both
+  sorted_ELosses <- sort(estimated_losses)
+  copula_VaR <- quantile (sorted_ELosses, probs = 1 - alpha, type = 7)
+  copula_AVaR <- mean(estimated_losses[estimated_losses <= copula_VaR])
+
+  sprintf("The copula estimated VaR is £%.2f, and the copula",
+          copula_VaR)
+  sprintf("estimated AVaR is £%.2f at the %.2f confidence",
+          copula_AVaR, 1-alpha)
+  print("interval.")
+  cat("\n")
+  ##cat("\n") 
+
+  sprintf("The linear model estimated VaR is £%.2f, and",
+          lin_VaR)
+  sprintf("the linear \n model estimated AVaR is £%.2f",
+          lin_AVaR)
+  sprintf("at the %.2f confidence interval.",
+          1-alpha)
+#+end_src
+
+
+
+* References
+#+cite_export: csl harvard-university-of-leeds.csl
+#+print_bibliography:
