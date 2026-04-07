@@ -147,6 +147,7 @@ We can now apply the variance-covariance method to the first date.
 lin_mu <- as.numeric(my_shares[,-1] * final_close[,-1]) %*% as.vector(load_means)
 lin_mu
 
+
 lin_sigma <- sqrt((as.numeric(my_shares[,-1] * final_close[,-1])) %*%
 as.matrix(load_covs) %*% (as.numeric(my_shares[,-1] * final_close[,-1])))
 lin_sigma

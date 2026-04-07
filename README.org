@@ -7,7 +7,34 @@ This project implements a lightweight, minimal dependency approach to estimating
 1. The Variance-Covariance Linear Model,
 2. A Gaussian copula with /t/-distributed marginals.
 
-A full report is available in the [[file:Report.pdf][documentation file]]. The methods employed are based on [cite:@mcneilQuantitativeRiskManagement2015], targeting readability, reproducibility, and minimal statistical "black-boxing". 
+A full report is available in the [[file:Report.pdf][documentation file]]. The methods employed are based on [cite:@mcneilQuantitativeRiskManagement2015], targeting readability, reproducibility, and minimal statistical "black-boxing".
+
+A minimal dependency [[file:src/Main.R][R script]] has been written supplying key functions automatically implementing Copula and variance-covariance VaR and AVaR calculation methods. This script only calls MASS (a default library) and data.table (a commonly included library).
+
+#+begin_src R :eval never-export
+  ## Call the Linear Approximation function
+  linear_approx <- linearModelRisk("2021-02-21", "2023-02-21", cleaned_close_prices[,-1], cleaned_close_prices[,1], as.numeric(my_shares[,-1]), alpha)
+  sprintf("The linear VaR is £%.2f and the AVaR is £%.2f at the %i%% CI.",
+          linear_approx[[1]], linear_approx[[2]], (1 - alpha) * 100)
+#+end_src
+
+#+begin_src R :eval never-export
+  >> "The linear VaR is £1928.48 and the AVaR is £2207.67 at the 99% CI."
+#+end_src
+
+#+begin_src R :eval never-export
+  VaRs <- copulaRiskCalculator (sample_start, sample_end, cleaned_close_prices[,-1], cleaned_close_prices[,1],
+                                as.numeric(my_shares[,-1]), simulations = 30000, alpha = alpha)
+
+  sprintf("The Gaussian Copula with t-distributed marginals finds a VaR of £%.2f and an AVaR of £%.2f at the %i%% CI.",
+          VaRs[[1]], VaRs[[2]], (1-alpha) * 100)
+#+end_src
+
+#+begin_src R
+  >> "The Gaussian Copula with t-distributed marginals finds a VaR of £2108.10 and an AVaR of £2619.25 at the 99% CI."
+#+end_src
+
+The functions are documented using roxygen2. My process building and designing the functions is loosely documented in [[file:src/Main.rmd][an R markdown file]].
 
 * Features
 
