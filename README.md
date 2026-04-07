@@ -1,20 +1,20 @@
 
 # Table of Contents
 
-1.  [Portfolio Risk Management in R](#org6e5ffe8)
-2.  [Features](#org7829e1e)
-3.  [CRAN Dependencies](#org3221267)
-4.  [Methodology](#orgf376761)
-    1.  [Preparing the Dataset](#org14ce5bb)
-    2.  [Variance-Covariance Model](#org6465c21)
-    3.  [Copula Joint Risk Modelling](#orgaf2008f)
-    4.  [Loss Estimation](#orgc78cc27)
-5.  [Future Improvements](#org9602c86)
-6.  [References](#orge41be1c)
+1.  [Portfolio Risk Management in R](#org00d082e)
+2.  [Features](#org5f47ab5)
+3.  [CRAN Dependencies](#org3612388)
+4.  [Methodology](#org85c089a)
+    1.  [Preparing the Dataset](#org87ca630)
+    2.  [Variance-Covariance Model](#orgc9d1be4)
+    3.  [Copula Joint Risk Modelling](#orga88fc29)
+    4.  [Loss Estimation](#org56e43da)
+5.  [Future Improvements](#org730f36f)
+6.  [References](#org2101a1c)
 
 
 
-<a id="org6e5ffe8"></a>
+<a id="org00d082e"></a>
 
 # Portfolio Risk Management in R
 
@@ -23,10 +23,29 @@ This project implements a lightweight, minimal dependency approach to estimating
 1.  The Variance-Covariance Linear Model,
 2.  A Gaussian copula with *t*-distributed marginals.
 
-A full report is available in the [documentation file](Report.pdf). The methods employed are based on (McNeil, Alexander J. and Frey, Rüdiger and Embrechts, Paul, 2015), targeting readability, reproducibility, and minimal statistical "black-boxing". 
+A full report is available in the [documentation file](Report.pdf). The methods employed are based on (McNeil, Alexander J. and Frey, Rüdiger and Embrechts, Paul, 2015), targeting readability, reproducibility, and minimal statistical "black-boxing".
+
+A minimal dependency [R script](src/Main.R) has been written supplying key functions automatically implementing Copula and variance-covariance VaR and AVaR calculation methods. This script only calls MASS (a default library) and data.table (a commonly included library).
+
+    ## Call the Linear Approximation function
+    linear_approx <- linearModelRisk("2021-02-21", "2023-02-21", cleaned_close_prices[,-1], cleaned_close_prices[,1], as.numeric(my_shares[,-1]), alpha)
+    sprintf("The linear VaR is £%.2f and the AVaR is £%.2f at the %i%% CI.",
+            linear_approx[[1]], linear_approx[[2]], (1 - alpha) * 100)
+
+    >> "The linear VaR is £1928.48 and the AVaR is £2207.67 at the 99% CI."
+
+    VaRs <- copulaRiskCalculator (sample_start, sample_end, cleaned_close_prices[,-1], cleaned_close_prices[,1],
+                                  as.numeric(my_shares[,-1]), simulations = 30000, alpha = alpha)
+    
+    sprintf("The Gaussian Copula with t-distributed marginals finds a VaR of £%.2f and an AVaR of £%.2f at the %i%% CI.",
+            VaRs[[1]], VaRs[[2]], (1-alpha) * 100)
+
+    >> "The Gaussian Copula with t-distributed marginals finds a VaR of £2108.10 and an AVaR of £2619.25 at the 99% CI."
+
+The functions are documented using roxygen2. My process building and designing the functions is loosely documented in [an R markdown file](src/Main.rmd).
 
 
-<a id="org7829e1e"></a>
+<a id="org5f47ab5"></a>
 
 # Features
 
@@ -41,7 +60,7 @@ A full report is available in the [documentation file](Report.pdf). The methods 
     2.  Joint distribution crossplots.
 
 
-<a id="org3221267"></a>
+<a id="org3612388"></a>
 
 # CRAN Dependencies
 
@@ -54,12 +73,12 @@ This project has very few dependencies.
 **No risk or copula modules are used**, all models implemented from "first principles". The report is in [a pdf](Report.pdf), the [main project file](src/Main.rmd) is also available. All data used is kept in "data/", and referenced in the Main file using \`here\`.
 
 
-<a id="orgf376761"></a>
+<a id="org85c089a"></a>
 
 # Methodology
 
 
-<a id="org14ce5bb"></a>
+<a id="org87ca630"></a>
 
 ## Preparing the Dataset
 
@@ -68,7 +87,7 @@ This project has very few dependencies.
 3.  Cleaning dataset of anomalies.
 
 
-<a id="org6465c21"></a>
+<a id="orgc9d1be4"></a>
 
 ## Variance-Covariance Model
 
@@ -84,7 +103,7 @@ Method:
 3.  Calculate AVaR analytically.
 
 
-<a id="orgaf2008f"></a>
+<a id="orga88fc29"></a>
 
 ## Copula Joint Risk Modelling
 
@@ -94,7 +113,7 @@ Method:
 4.  Applied marginal distributions to convert back to stock price changes.
 
 
-<a id="orgc78cc27"></a>
+<a id="org56e43da"></a>
 
 ## Loss Estimation
 
@@ -103,7 +122,7 @@ Method:
 3.  Exceeding values averaged for AVaR.
 
 
-<a id="org9602c86"></a>
+<a id="org730f36f"></a>
 
 # Future Improvements
 
@@ -113,7 +132,7 @@ Method:
 4.  Backtesting? Stress-testing?
 
 
-<a id="orge41be1c"></a>
+<a id="org2101a1c"></a>
 
 # References
 
