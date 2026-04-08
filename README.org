@@ -34,7 +34,7 @@ A minimal dependency [[file:src/Main.R][R script]] has been written supplying ke
   >> "The Gaussian Copula with t-distributed marginals finds a VaR of £2108.10 and an AVaR of £2619.25 at the 99% CI."
 #+end_src
 
-The functions are documented using roxygen2. My process building and designing the functions is loosely documented in [[file:src/Main.rmd][an R markdown file]].
+A package has been made implementing these methods in a small library, available as [[https://github.com/ghost9639/VaR-and-AVaR-Package][a GitHub project]]. My process building and designing the functions is loosely documented in [[file:src/Main.rmd][an R markdown file]].
 
 * Features
 

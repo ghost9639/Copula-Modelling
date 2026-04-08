@@ -1,20 +1,20 @@
 
 # Table of Contents
 
-1.  [Portfolio Risk Management in R](#org00d082e)
-2.  [Features](#org5f47ab5)
-3.  [CRAN Dependencies](#org3612388)
-4.  [Methodology](#org85c089a)
-    1.  [Preparing the Dataset](#org87ca630)
-    2.  [Variance-Covariance Model](#orgc9d1be4)
-    3.  [Copula Joint Risk Modelling](#orga88fc29)
-    4.  [Loss Estimation](#org56e43da)
-5.  [Future Improvements](#org730f36f)
-6.  [References](#org2101a1c)
+1.  [Portfolio Risk Management in R](#org2a38b3c)
+2.  [Features](#org368dbf4)
+3.  [CRAN Dependencies](#orgbdbadec)
+4.  [Methodology](#org2022f53)
+    1.  [Preparing the Dataset](#orgdabecff)
+    2.  [Variance-Covariance Model](#org14d6d9d)
+    3.  [Copula Joint Risk Modelling](#org09dc5d6)
+    4.  [Loss Estimation](#org47cb59e)
+5.  [Future Improvements](#org61deac1)
+6.  [References](#org8e0942d)
 
 
 
-<a id="org00d082e"></a>
+<a id="org2a38b3c"></a>
 
 # Portfolio Risk Management in R
 
@@ -42,10 +42,10 @@ A minimal dependency [R script](src/Main.R) has been written supplying key funct
 
     >> "The Gaussian Copula with t-distributed marginals finds a VaR of £2108.10 and an AVaR of £2619.25 at the 99% CI."
 
-The functions are documented using roxygen2. My process building and designing the functions is loosely documented in [an R markdown file](src/Main.rmd).
+A package has been made implementing these methods in a small library, available as [a GitHub project](https://github.com/ghost9639/VaR-and-AVaR-Package). My process building and designing the functions is loosely documented in [an R markdown file](src/Main.rmd).
 
 
-<a id="org5f47ab5"></a>
+<a id="org368dbf4"></a>
 
 # Features
 
@@ -60,7 +60,7 @@ The functions are documented using roxygen2. My process building and designing t
     2.  Joint distribution crossplots.
 
 
-<a id="org3612388"></a>
+<a id="orgbdbadec"></a>
 
 # CRAN Dependencies
 
@@ -73,12 +73,12 @@ This project has very few dependencies.
 **No risk or copula modules are used**, all models implemented from "first principles". The report is in [a pdf](Report.pdf), the [main project file](src/Main.rmd) is also available. All data used is kept in "data/", and referenced in the Main file using \`here\`.
 
 
-<a id="org85c089a"></a>
+<a id="org2022f53"></a>
 
 # Methodology
 
 
-<a id="org87ca630"></a>
+<a id="orgdabecff"></a>
 
 ## Preparing the Dataset
 
@@ -87,7 +87,7 @@ This project has very few dependencies.
 3.  Cleaning dataset of anomalies.
 
 
-<a id="orgc9d1be4"></a>
+<a id="org14d6d9d"></a>
 
 ## Variance-Covariance Model
 
@@ -103,7 +103,7 @@ Method:
 3.  Calculate AVaR analytically.
 
 
-<a id="orga88fc29"></a>
+<a id="org09dc5d6"></a>
 
 ## Copula Joint Risk Modelling
 
@@ -113,7 +113,7 @@ Method:
 4.  Applied marginal distributions to convert back to stock price changes.
 
 
-<a id="org56e43da"></a>
+<a id="org47cb59e"></a>
 
 ## Loss Estimation
 
@@ -122,7 +122,7 @@ Method:
 3.  Exceeding values averaged for AVaR.
 
 
-<a id="org730f36f"></a>
+<a id="org61deac1"></a>
 
 # Future Improvements
 
@@ -132,7 +132,7 @@ Method:
 4.  Backtesting? Stress-testing?
 
 
-<a id="org2101a1c"></a>
+<a id="org8e0942d"></a>
 
 # References
 
