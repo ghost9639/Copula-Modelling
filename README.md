@@ -1,21 +1,21 @@
 
 # Table of Contents
 
-1.  [Portfolio Risk Management in R](#orge3b37f5)
-2.  [Features](#orgf7f80a0)
-3.  [CRAN Dependencies](#org0dafda4)
-4.  [Methodology](#org18719e7)
-    1.  [Preparing the Dataset](#orgf888f67)
-    2.  [Variance-Covariance Model](#org56560cb)
-    3.  [Copula Joint Risk Modelling](#org69ff259)
-    4.  [Loss Estimation](#org4b0cc71)
-    5.  [Stress Testing](#orgc76fbb8)
-5.  [Future Improvements](#org99775a3)
-6.  [References](#org6ec3bc0)
+1.  [Portfolio Risk Management in R](#org15451f2)
+2.  [Features](#orgb261d4b)
+3.  [CRAN Dependencies](#org6b8e37b)
+4.  [Methodology](#org3ad6d63)
+    1.  [Preparing the Dataset](#org1635f96)
+    2.  [Variance-Covariance Model](#orgb591856)
+    3.  [Copula Joint Risk Modelling](#orgdc1f6aa)
+    4.  [Loss Estimation](#org327ca65)
+    5.  [Stress Testing](#org659cbc4)
+5.  [Future Improvements](#orgfc2ec95)
+6.  [References](#orgb8ed0d3)
 
 
 
-<a id="orge3b37f5"></a>
+<a id="org15451f2"></a>
 
 # Portfolio Risk Management in R
 
@@ -48,7 +48,7 @@ A minimal dependency [R script](src/Main.R) has been written supplying key funct
 A package has been made implementing these methods in a small library, available as [a GitHub project](https://github.com/ghost9639/VaR-and-AVaR-Package). My process building and designing the functions is loosely documented in [an R markdown file](src/Main.rmd).
 
 
-<a id="orgf7f80a0"></a>
+<a id="orgb261d4b"></a>
 
 # Features
 
@@ -63,7 +63,7 @@ A package has been made implementing these methods in a small library, available
     2.  Joint distribution crossplots.
 
 
-<a id="org0dafda4"></a>
+<a id="org6b8e37b"></a>
 
 # CRAN Dependencies
 
@@ -76,12 +76,12 @@ This project has very few dependencies.
 **No risk or copula modules are used**, all models implemented from "first principles". The report is in [a pdf](Report.pdf), the [main project file](src/Main.rmd) is also available. All data used is kept in "data/", and referenced in the Main file using \`here\`.
 
 
-<a id="org18719e7"></a>
+<a id="org3ad6d63"></a>
 
 # Methodology
 
 
-<a id="orgf888f67"></a>
+<a id="org1635f96"></a>
 
 ## Preparing the Dataset
 
@@ -90,7 +90,7 @@ This project has very few dependencies.
 3.  Cleaning dataset of anomalies.
 
 
-<a id="org56560cb"></a>
+<a id="orgb591856"></a>
 
 ## Variance-Covariance Model
 
@@ -106,7 +106,7 @@ Method:
 3.  Calculate AVaR analytically.
 
 
-<a id="org69ff259"></a>
+<a id="orgdc1f6aa"></a>
 
 ## Copula Joint Risk Modelling
 
@@ -116,7 +116,7 @@ Method:
 4.  Applied marginal distributions to convert back to stock price changes.
 
 
-<a id="org4b0cc71"></a>
+<a id="org327ca65"></a>
 
 ## Loss Estimation
 
@@ -125,7 +125,7 @@ Method:
 3.  Exceeding values averaged for AVaR.
 
 
-<a id="orgc76fbb8"></a>
+<a id="org659cbc4"></a>
 
 ## Stress Testing
 
@@ -133,7 +133,7 @@ Method:
 2.  Use of previously built libraries to calculate VaR and AVaR under these tail market scenarios.
 
 
-<a id="org99775a3"></a>
+<a id="orgfc2ec95"></a>
 
 # Future Improvements
 
@@ -143,11 +143,11 @@ Method:
 4.  Backtesting? Stress-testing?
 
 
-<a id="org6ec3bc0"></a>
+<a id="orgb8ed0d3"></a>
 
 # References
 
-\##+cite<sub>export</sub>: csl harvard-university-of-leeds.csl
+\##+cite<sub>export</sub>: csl ~/Zotero/styles/chicago-author-date
 
 McNeil, Alexander J. and Frey, R{\\"u}diger and Embrechts, Paul (2015). *Quantitative Risk Management: Concepts, Techniques and Tools*, Princeton University Press.
 

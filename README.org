@@ -107,5 +107,5 @@ Method:
 4. Backtesting? Stress-testing?
 
 * References
-##+cite_export: csl harvard-university-of-leeds.csl
+##+cite_export: csl ~/Zotero/styles/chicago-author-date
 #+print_bibliography:
