@@ -7,6 +7,8 @@ This project implements a lightweight, minimal dependency approach to estimating
 1. The Variance-Covariance Linear Model,
 2. A Gaussian copula with /t/-distributed marginals.
 
+This is further extended with a stress testing project using the Capital Asset Pricing Model to simulate market tail scenarios, working well with the written risk modelling library to calculate VaR and expected shortfall under specific negative market conditions.
+
 A full report is available in the [[file:Report.pdf][documentation file]]. The methods employed are based on [cite:@mcneilQuantitativeRiskManagement2015], targeting readability, reproducibility, and minimal statistical "black-boxing".
 
 A minimal dependency [[file:src/Main.R][R script]] has been written supplying key functions automatically implementing Copula and variance-covariance VaR and AVaR calculation methods. This script only calls MASS (a default library) and data.table (a commonly included library).
@@ -92,6 +94,11 @@ Method:
 2. Required quantile collected for VaR,
 3. Exceeding values averaged for AVaR.
 
+** Stress Testing
+
+1. CAPM fitting and calibration of market stocks and ETFs, support for changing returns and creating market shocks,
+2. Use of previously built libraries to calculate VaR and AVaR under these tail market scenarios.
+   
 * Future Improvements
 
 1. Generalised functions for both,

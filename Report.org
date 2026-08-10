@@ -41,7 +41,7 @@ After loading up the data, we want to convert it to logged returns for more reli
 #+attr_latex: :float t :width 0.7\linewidth :height 0.4\textheight :keepaspectratio
 [[file:babelCleanReturns.pdf]]
 
-* Variance-Covariance Linear Model
+* Variance-Covariance linear model
 
 We can apply the variance-covariance method to estimating VaR and AVaR. We can sample the 2 years prior to our sampling day, giving us 501 days worth of data. The variance-covariance method assumes that stock returns are normal, and approximates the evolutionary process using a linear model. For short term periods like a single day however, this should be reasonably accurate. The model works by assuming the existence of a pricing function /f/, such that the profit /V/ can be calculated as a deterministic function of random variables, called risk factors.
 
@@ -61,7 +61,7 @@ Observing block [[listing::lmest]], we can see that the estimated VaR is £2003.
 | The Value at Risk estimated from the linear model is £2003.50, and |
 | the Average Value at Risk estimated from the model is £2293.39.    |
 
-* Copula Fitting
+* Copula fitting
 
 If we want to model distributions with heavier tails, we can apply the /t/-distribution. This section is based on [cite:@mcneilQuantitativeRiskManagement2015], with methods reconstructed based on Chapter 7. Tidyverse was used for data manipulation methods and MASS was used for multivariate normal distribution sampling. We can model our `marginal` stock distributions, each individual asset, according to their own /t/-distributions. We can then fit a Gaussian `copula`, an effective joint cumulative distribution function, in order to obtain more accurate and deeper tails. \linebreak
 
@@ -120,6 +120,57 @@ We can calculate the portfolio value for any of these simulated possibilities, a
 
 \newpage
 
+
+* Stress testing
+
+We can now consider a real set of stocks and evaluate their risk under possible tail scenarios. We have the stocks NVIDIA (NVDA), Apple (AAPL), USD Dollar Fund Unhedged, Evolve Enchanced Yield Bond (on the XTSE), and Pimco ETF (on the XNYS), collected from the Bing stock ticker in Excel. We also have the market return, risk-free rate, and tech market return rates over the period (2024/01/02-2026/05/18), taken from Fama and French market data. There were four missing values in the Evolve Enchanged Yield bond, which were interpolated using the zoo library.
+
+
+We can again clean the data and run our linear approximation and copula risk modelling, with the results presented in Table [[tab::baseportrisk]].
+
+#+name: tab::baseportrisk
+#+caption: Portfolio VaR and expected shortfall prior to articifial stress
+| Method                        | VaR_{0.99} | AVaR_{0.99} |
+|-------------------------------+------------+-------------|
+| Variance covariance           | £2918.42   | £3358.89    |
+| Gaussian Copula (/t/-marginals) | £3101.86   | £4427.88    |
+
+We can stress test our stocks using the Capital Asset Pricing Model (CAPM):
+#+name: eq::capm
+\begin{equation}
+r_{i,t} - r_{f,t} = \alpha_i + \beta_{i,m} (r_{m,t} - r_{f,t}) + \epsilon_{i,t},
+\end{equation}
+where $R_i$ is the value of the stock at time $i$, $R_{f,i}$ is the risk-free rate at time $i$, \alpha_i is the return above (or below) market excess returns, and \beta_i measures the relationship between how the stock varies with the market at large, and \epsilon is some disturbance term. In our case, both of our stocks are tech stocks, so we can also include a third term including the tech industry excess return. We can easily implement this as a linear regression, with an augmented Dickey-Fuller test and post-regression residual normality testing confirming that the linear regression model accuracy assumptions are satisfied.
+#+name: eq::linCAPM
+\begin{equation}
+r_{i,t} - r_{f,t} = \alpha_i + \beta_{i,m}(r_{m,t} - r_{f,t}) + \beta_{i,I} I_t + \epsilon_{i,t}
+\end{equation}
+where $I_t$ is the industry excess return and $\beta_{i,I}$ is the corresponding beta. With these fitted to each stock, we can also fit the CAPM for tech excess industry returns based on equation [[eq::capm]], allowing us to simulate a reduced tech market in the case where tech returns fall /x%/, the market return falls /y%/, and the risk-free rate falls /z%/:
+\[I_{i,t} - r_{f,t} = \alpha_i - x + \beta_{i,m} (r_{m,t} - r_{f,t} - y) - z + \hat{\epsilon}_{i,t}, \]
+where $\hat{\epsilon}_{i,t}$ is the observed residuals in the market data, and $\tilde{I}_{i,t} = I_{i,t} - r_{f,t}$ is our new reduced tech industry excess return. We can then substitute these into [[eq::linCAPM]], as:
+\[r_{i,t} - r_{f,t} = \alpha_i - x + \beta_{i,m}(r_{m,t} - r_{f,t} - y) + \beta_{i,I} \tilde{I}_t - z + \hat{\epsilon}_{i,t}. \]
+These equations define a method for simulating different negative market conditions for stocks, such as falls in interest rates, the market excess return, or tech downfalls.
+
+
+In this project, I considered three potential situations:
+1) tech downturn where the market return drops 8%, the risk free rate drops 2%, and the tech market drops 10%,
+2) heavy tech downturn where market return drops 10%, the risk free rate drops 5%, and the tech market drops 20%,
+3) market downturn where market return drops 25%, risk free rate drops 5%, and tech market drops 5%.
+Using a Gaussian Copula with /t/-marginals, the new values at risk were:
+
+| Scenario | VaR_{0.99} | AVaR_{0.99} |
+|----------+------------+-------------|
+|        1 | £5172.16   | £6408.59    |
+|        2 | £8264.95   | £9498.29    |
+|        3 | £8196.56   | £9459.90    |
+
+Compared to Table [[tab::baseportrisk]], we can observe that the potential losses are far higher, almost rising up to a tenth of the original value of the portfolio in the case of AVaR_{0.99} in Scenario 3. It is interesting to observe how similar the impact of decreases in the market return and tech industry excess returns impact are, indicating that a key direction to expand this kind of testing would be to identify better how the two could compound each other. It could also be worth studying particular downturns like the DotCom crisis to test real life stress situations that particularly target the tech markets.
+
+
+
+
+
+
 * Appendix
 
 Code blocks evaluated in org-babel (version: =release_9.7.37=) on Mac Tahoe 26.3.1, using R version 4.5.1. Only CRAN library dependencies are =tidyverse= and =here=, although =here= is optional and only used for file pathing.
@@ -132,10 +183,10 @@ Code blocks evaluated in org-babel (version: =release_9.7.37=) on Mac Tahoe 26.3
   suppressMessages(library(MASS))  # MASS provides multivariate Gaussian simulations
 #+end_src
 
-#+begin_src R :session MyR :exports none
-  close_prices <- read_csv(here("data/Data_Student_201605543.csv"))
+#+begin_src R :session MyR :exports code
+  close_prices <- read_csv(here("data", "Data_Student_201605543.csv"))
 
-  shares <- read_csv(here("data//share_numbers.csv"))
+  shares <- read_csv(here("data", "share_numbers.csv"))
 
   my_shares <- shares %>% filter(`Student ID` == 201605543)
   colnames(my_shares) <- c("SID", "Asset 1", "Asset 2", "Asset 3", "Asset 4")
@@ -410,5 +461,5 @@ Code blocks evaluated in org-babel (version: =release_9.7.37=) on Mac Tahoe 26.3
 
 
 * References
-#+cite_export: csl harvard-university-of-leeds.csl
+#+cite_export: csl ~/Zotero/styles/chicago-author-date.csl
 #+print_bibliography:

@@ -1,20 +1,21 @@
 
 # Table of Contents
 
-1.  [Portfolio Risk Management in R](#org2a38b3c)
-2.  [Features](#org368dbf4)
-3.  [CRAN Dependencies](#orgbdbadec)
-4.  [Methodology](#org2022f53)
-    1.  [Preparing the Dataset](#orgdabecff)
-    2.  [Variance-Covariance Model](#org14d6d9d)
-    3.  [Copula Joint Risk Modelling](#org09dc5d6)
-    4.  [Loss Estimation](#org47cb59e)
-5.  [Future Improvements](#org61deac1)
-6.  [References](#org8e0942d)
+1.  [Portfolio Risk Management in R](#orge3b37f5)
+2.  [Features](#orgf7f80a0)
+3.  [CRAN Dependencies](#org0dafda4)
+4.  [Methodology](#org18719e7)
+    1.  [Preparing the Dataset](#orgf888f67)
+    2.  [Variance-Covariance Model](#org56560cb)
+    3.  [Copula Joint Risk Modelling](#org69ff259)
+    4.  [Loss Estimation](#org4b0cc71)
+    5.  [Stress Testing](#orgc76fbb8)
+5.  [Future Improvements](#org99775a3)
+6.  [References](#org6ec3bc0)
 
 
 
-<a id="org2a38b3c"></a>
+<a id="orge3b37f5"></a>
 
 # Portfolio Risk Management in R
 
@@ -23,7 +24,9 @@ This project implements a lightweight, minimal dependency approach to estimating
 1.  The Variance-Covariance Linear Model,
 2.  A Gaussian copula with *t*-distributed marginals.
 
-A full report is available in the [documentation file](Report.pdf). The methods employed are based on (McNeil, Alexander J. and Frey, Rüdiger and Embrechts, Paul, 2015), targeting readability, reproducibility, and minimal statistical "black-boxing".
+This is further extended with a stress testing project using the Capital Asset Pricing Model to simulate market tail scenarios, working well with the written risk modelling library to calculate VaR and expected shortfall under specific negative market conditions.
+
+A full report is available in the [documentation file](Report.pdf). The methods employed are based on (McNeil, Alexander J. and Frey, R{\\"u}diger and Embrechts, Paul, 2015), targeting readability, reproducibility, and minimal statistical "black-boxing".
 
 A minimal dependency [R script](src/Main.R) has been written supplying key functions automatically implementing Copula and variance-covariance VaR and AVaR calculation methods. This script only calls MASS (a default library) and data.table (a commonly included library).
 
@@ -45,7 +48,7 @@ A minimal dependency [R script](src/Main.R) has been written supplying key funct
 A package has been made implementing these methods in a small library, available as [a GitHub project](https://github.com/ghost9639/VaR-and-AVaR-Package). My process building and designing the functions is loosely documented in [an R markdown file](src/Main.rmd).
 
 
-<a id="org368dbf4"></a>
+<a id="orgf7f80a0"></a>
 
 # Features
 
@@ -60,7 +63,7 @@ A package has been made implementing these methods in a small library, available
     2.  Joint distribution crossplots.
 
 
-<a id="orgbdbadec"></a>
+<a id="org0dafda4"></a>
 
 # CRAN Dependencies
 
@@ -73,12 +76,12 @@ This project has very few dependencies.
 **No risk or copula modules are used**, all models implemented from "first principles". The report is in [a pdf](Report.pdf), the [main project file](src/Main.rmd) is also available. All data used is kept in "data/", and referenced in the Main file using \`here\`.
 
 
-<a id="org2022f53"></a>
+<a id="org18719e7"></a>
 
 # Methodology
 
 
-<a id="orgdabecff"></a>
+<a id="orgf888f67"></a>
 
 ## Preparing the Dataset
 
@@ -87,7 +90,7 @@ This project has very few dependencies.
 3.  Cleaning dataset of anomalies.
 
 
-<a id="org14d6d9d"></a>
+<a id="org56560cb"></a>
 
 ## Variance-Covariance Model
 
@@ -103,7 +106,7 @@ Method:
 3.  Calculate AVaR analytically.
 
 
-<a id="org09dc5d6"></a>
+<a id="org69ff259"></a>
 
 ## Copula Joint Risk Modelling
 
@@ -113,7 +116,7 @@ Method:
 4.  Applied marginal distributions to convert back to stock price changes.
 
 
-<a id="org47cb59e"></a>
+<a id="org4b0cc71"></a>
 
 ## Loss Estimation
 
@@ -122,7 +125,15 @@ Method:
 3.  Exceeding values averaged for AVaR.
 
 
-<a id="org61deac1"></a>
+<a id="orgc76fbb8"></a>
+
+## Stress Testing
+
+1.  CAPM fitting and calibration of market stocks and ETFs, support for changing returns and creating market shocks,
+2.  Use of previously built libraries to calculate VaR and AVaR under these tail market scenarios.
+
+
+<a id="org99775a3"></a>
 
 # Future Improvements
 
@@ -132,11 +143,11 @@ Method:
 4.  Backtesting? Stress-testing?
 
 
-<a id="org8e0942d"></a>
+<a id="org6ec3bc0"></a>
 
 # References
 
 \##+cite<sub>export</sub>: csl harvard-university-of-leeds.csl
 
-McNeil, Alexander J. and Frey, Rüdiger and Embrechts, Paul (2015). *Quantitative Risk Management: Concepts, Techniques and Tools*, Princeton University Press.
+McNeil, Alexander J. and Frey, R{\\"u}diger and Embrechts, Paul (2015). *Quantitative Risk Management: Concepts, Techniques and Tools*, Princeton University Press.
 
