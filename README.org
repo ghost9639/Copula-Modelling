@@ -9,7 +9,7 @@ This project implements a lightweight, minimal dependency approach to estimating
 
 This is further extended with a stress testing project using the Capital Asset Pricing Model to simulate market tail scenarios, working well with the written risk modelling library to calculate VaR and expected shortfall under specific negative market conditions.
 
-A full report is available in the [[file:Report.pdf][documentation file]]. The methods employed are based on [cite:@mcneilQuantitativeRiskManagement2015], targeting readability, reproducibility, and minimal statistical "black-boxing".
+A full report is available in the [[file:Report.pdf][documentation file]]. The methods employed are based on (McNeil, Alexander J. and Frey, Rüdiger and Embrechts, Paul, 2015), targeting readability, reproducibility, and minimal statistical "black-boxing".
 
 A minimal dependency [[file:src/Main.R][R script]] has been written supplying key functions automatically implementing Copula and variance-covariance VaR and AVaR calculation methods. This script only calls MASS (a default library) and data.table (a commonly included library).
 
@@ -107,5 +107,4 @@ Method:
 4. Backtesting? Stress-testing?
 
 * References
-##+cite_export: csl ~/Zotero/styles/chicago-author-date
-#+print_bibliography:
+McNeil, Alexander J. and Frey, Rüdiger and Embrechts, Paul (2015). Quantitative Risk Management: Concepts, Techniques and Tools, Princeton University Press.
